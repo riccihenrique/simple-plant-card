@@ -113,6 +113,12 @@ export class SimplePlantCard extends LitElement {
             this._update_entites()
         this._states_updated = false; // resetting for future use
         this._loadTranslations()
+
+        // Guard: bail out if required entities are not yet loaded
+        const requiredKeys = ["health", "days_between_waterings", "next_watering", "problem", "last_watered"];
+        if (requiredKeys.some(k => !this._entity_states.get(k)))
+            return html``;
+
         // compute strings
         const health_key_prefix = "component.simple_plant.entity.select.health.state"
         const health_key = `${health_key_prefix}.${this._entity_states.get("health").state}`
@@ -136,17 +142,25 @@ export class SimplePlantCard extends LitElement {
         const last_watered = relativeDate(last_date, local, today)
         const button_label = last_watered === today ? this._translations["cancel"] : this._translations["button"]
 
-        const next_fertilization_date = this._entity_states.get("next_fertilization").state;
-        const next_fertilization = relativeDate(next_fertilization_date, local, today);
-        const fertilization_color = this._entity_states.get("next_fertilization").attributes.color
+        const fertilization_enabled = !!this._entity_ids["next_fertilization"];
+        let next_fertilization_class = "";
+        let late_fertilization_class = "hidden";
+        let fertilization_color = "";
+        let next_fertilization = "";
+        let button_fertilized_label = "";
+        if (fertilization_enabled) {
+            const next_fertilization_date = this._entity_states.get("next_fertilization").state;
+            next_fertilization = relativeDate(next_fertilization_date, local, today);
+            fertilization_color = this._entity_states.get("next_fertilization").attributes.color;
 
-        const late_fertilization = this._entity_states.get("problem_fertilization").state === "on";
-        const next_fertilization_class = late_fertilization ? "sub" : "";
-        const late_fertilization_class = late_fertilization ? "" : "hidden";
+            const late_fertilization = this._entity_states.get("problem_fertilization").state === "on";
+            next_fertilization_class = late_fertilization ? "sub" : "";
+            late_fertilization_class = late_fertilization ? "" : "hidden";
 
-        const last_fertilized_date = this._entity_states.get("last_fertilized").state;
-        const last_fertilized = relativeDate(last_fertilized_date, local, today)
-        const button_fertilized_label = last_fertilized === today ? this._translations["cancel"] : this._translations["button_fertilized"]
+            const last_fertilized_date = this._entity_states.get("last_fertilized").state;
+            const last_fertilized = relativeDate(last_fertilized_date, local, today)
+            button_fertilized_label = last_fertilized === today ? this._translations["cancel"] : this._translations["button_fertilized"]
+        }
 
         // return card
         return html`
@@ -195,6 +209,7 @@ export class SimplePlantCard extends LitElement {
                             </div>
                         </div>
 
+                        ${fertilization_enabled ? html`
                         <div class="row">
                             <ha-icon
                                 data-color
@@ -206,14 +221,17 @@ export class SimplePlantCard extends LitElement {
                                 <p class="${next_fertilization_class}">${next_fertilization}</p>
                             </div>
                         </div>
+                        ` : ""}
 
                         <ha-button
                             @click="${this._handleButton}"
                         >${button_label}</ha-button>
 
+                        ${fertilization_enabled ? html`
                         <ha-button
                             @click="${this._handleFertilizedButton}"
                         >${button_fertilized_label}</ha-button>
+                        ` : ""}
                     </div>
                 </div>
             </ha-card>
@@ -258,14 +276,16 @@ export class SimplePlantCard extends LitElement {
         if (!this._entity_ids || !this._hass)
             return
         for (const [key, id] of Object.entries(this._entity_ids)) {
+            const state = this._hass.states[id];
+            if (!state) continue;
 
             if (
                 (!this._entity_states.has(key))
-                || (this._entity_states.get(key).state != this._hass.states[id].state)
+                || (this._entity_states.get(key).state != state.state)
             ) {
                 trigger_update = true
             }
-            this._entity_states.set(key, this._hass.states[id])
+            this._entity_states.set(key, state)
         }
         if(trigger_update)
             this._states_updated = true
