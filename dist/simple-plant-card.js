@@ -754,13 +754,17 @@ class $a399cc6bbb0eb26a$export$ca6a74221cf9b5c5 extends (0, $ab210b2da7b39b9d$ex
     static{
         this.keys = [
             "mark_watered",
+            "mark_fertilized",
             "todo",
             "problem",
+            "problem_fertilization",
             "last_watered",
+            "last_fertilized",
             "picture",
             "days_between_waterings",
             "health",
-            "next_watering"
+            "next_watering",
+            "next_fertilization"
         ];
     }
     set hass(hass) {
@@ -845,6 +849,15 @@ class $a399cc6bbb0eb26a$export$ca6a74221cf9b5c5 extends (0, $ab210b2da7b39b9d$ex
         const last_date = this._entity_states.get("last_watered").state;
         const last_watered = (0, $feccc7a5980a21d5$export$6270e84457db9b38)(last_date, local, today);
         const button_label = last_watered === today ? this._translations["cancel"] : this._translations["button"];
+        const next_fertilization_date = this._entity_states.get("next_fertilization").state;
+        const next_fertilization = (0, $feccc7a5980a21d5$export$6270e84457db9b38)(next_fertilization_date, local, today);
+        const fertilization_color = this._entity_states.get("next_fertilization").attributes.color;
+        const late_fertilization = this._entity_states.get("problem_fertilization").state === "on";
+        const next_fertilization_class = late_fertilization ? "sub" : "";
+        const late_fertilization_class = late_fertilization ? "" : "hidden";
+        const last_fertilized_date = this._entity_states.get("last_fertilized").state;
+        const last_fertilized = (0, $feccc7a5980a21d5$export$6270e84457db9b38)(last_fertilized_date, local, today);
+        const button_fertilized_label = last_fertilized === today ? this._translations["cancel"] : this._translations["button_fertilized"];
         // return card
         return (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)`
             <ha-card>
@@ -891,9 +904,25 @@ class $a399cc6bbb0eb26a$export$ca6a74221cf9b5c5 extends (0, $ab210b2da7b39b9d$ex
                             </div>
                         </div>
 
+                        <div class="row">
+                            <ha-icon
+                                data-color
+                                style="--color: ${fertilization_color};"
+                                .icon=${"mdi:sprout"}
+                            ></ha-icon>
+                            <div class="content" @click="${()=>this._moreInfo("last_fertilized")}">
+                                <p class="${late_fertilization_class}">${this._translations["late_fertilization"]} !</p>
+                                <p class="${next_fertilization_class}">${next_fertilization}</p>
+                            </div>
+                        </div>
+
                         <ha-button
                             @click="${this._handleButton}"
                         >${button_label}</ha-button>
+
+                        <ha-button
+                            @click="${this._handleFertilizedButton}"
+                        >${button_fertilized_label}</ha-button>
                     </div>
                 </div>
             </ha-card>
@@ -923,6 +952,11 @@ class $a399cc6bbb0eb26a$export$ca6a74221cf9b5c5 extends (0, $ab210b2da7b39b9d$ex
             entity_id: this._entity_ids["mark_watered"]
         });
     }
+    _handleFertilizedButton() {
+        this._hass.callService("button", "press", {}, {
+            entity_id: this._entity_ids["mark_fertilized"]
+        });
+    }
     _update_entites() {
         // Update values of entities that got updated
         var trigger_update = false;
@@ -946,25 +980,34 @@ class $a399cc6bbb0eb26a$export$ca6a74221cf9b5c5 extends (0, $ab210b2da7b39b9d$ex
         const device_entities = entities.filter((entity)=>entity.device_id == this._device_id);
         const entity_ids = device_entities.map(({ entity_id: entity_id })=>entity_id);
         // parse entities
+        // Sort keys by length descending so more specific keys match before shorter ones
+        // (e.g. "problem_fertilization" before "problem")
+        const sortedKeys = [
+            ...$a399cc6bbb0eb26a$export$ca6a74221cf9b5c5.keys
+        ].sort((a, b)=>b.length - a.length);
         entity_ids.forEach((id)=>{
-            $a399cc6bbb0eb26a$export$ca6a74221cf9b5c5.keys.forEach((key)=>{
-                if (id.includes(key)) // Associate the corresponding key with the matched string
+            for (const key of sortedKeys)if (id.includes(key)) {
                 this._entity_ids[key] = id;
-            });
+                break;
+            }
         });
     }
     async _loadTranslations() {
         if (!this._entity_states.size || this._translations_loaded) return;
         const translation_key = `component.${(0, $3cb55e3e7ebd776a$export$a970e6ec17c9a61d)}.entity.button.mark_watered.name`;
         this._translations["button"] = `${this._hass.localize(translation_key)} !`;
+        const fertilized_key = `component.${(0, $3cb55e3e7ebd776a$export$a970e6ec17c9a61d)}.entity.button.mark_fertilized.name`;
+        this._translations["button_fertilized"] = `${this._hass.localize(fertilized_key)} !`;
         this._translations["cancel"] = this._hass.localize("ui.dialogs.generic.cancel");
         this._translations["today"] = this._hass.localize("ui.components.calendar.today");
         this._translations["late"] = this._hass.localize(`component.${(0, $3cb55e3e7ebd776a$export$a970e6ec17c9a61d)}.entity.binary_sensor.problem.name`);
+        this._translations["late_fertilization"] = this._hass.localize(`component.${(0, $3cb55e3e7ebd776a$export$a970e6ec17c9a61d)}.entity.binary_sensor.problem_fertilization.name`);
         this._translations_loaded = true;
     }
     constructor(...args){
         super(...args), this._translations_loaded = false, this._states_updated = true, this._entity_ids = {}, this._entity_states = new Map(), this._config_updated = true, this._translations = {
             "button": "Mark as Watered !",
+            "button_fertilized": "Mark as Fertilized !",
             "cancel": "Cancel",
             "today": "today"
         };

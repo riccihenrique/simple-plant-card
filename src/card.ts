@@ -27,19 +27,24 @@ export class SimplePlantCard extends LitElement {
     private _config_updated: boolean = true ;
     private _translations : Dictionary<string> = {
         "button": "Mark as Watered !",
+        "button_fertilized": "Mark as Fertilized !",
         "cancel": "Cancel",
         "today": "today"
     }
 
     static keys : Array<string> = [
         "mark_watered",
+        "mark_fertilized",
         "todo",
         "problem",
+        "problem_fertilization",
         "last_watered",
+        "last_fertilized",
         "picture",
         "days_between_waterings",
         "health",
         "next_watering",
+        "next_fertilization",
     ]
 
     set hass(hass : HomeAssistant2) {
@@ -131,6 +136,18 @@ export class SimplePlantCard extends LitElement {
         const last_watered = relativeDate(last_date, local, today)
         const button_label = last_watered === today ? this._translations["cancel"] : this._translations["button"]
 
+        const next_fertilization_date = this._entity_states.get("next_fertilization").state;
+        const next_fertilization = relativeDate(next_fertilization_date, local, today);
+        const fertilization_color = this._entity_states.get("next_fertilization").attributes.color
+
+        const late_fertilization = this._entity_states.get("problem_fertilization").state === "on";
+        const next_fertilization_class = late_fertilization ? "sub" : "";
+        const late_fertilization_class = late_fertilization ? "" : "hidden";
+
+        const last_fertilized_date = this._entity_states.get("last_fertilized").state;
+        const last_fertilized = relativeDate(last_fertilized_date, local, today)
+        const button_fertilized_label = last_fertilized === today ? this._translations["cancel"] : this._translations["button_fertilized"]
+
         // return card
         return html`
             <ha-card>
@@ -178,9 +195,25 @@ export class SimplePlantCard extends LitElement {
                             </div>
                         </div>
 
+                        <div class="row">
+                            <ha-icon
+                                data-color
+                                style="--color: ${fertilization_color};"
+                                .icon=${"mdi:sprout"}
+                            ></ha-icon>
+                            <div class="content" @click="${() => this._moreInfo("last_fertilized")}">
+                                <p class="${late_fertilization_class}">${this._translations["late_fertilization"]} !</p>
+                                <p class="${next_fertilization_class}">${next_fertilization}</p>
+                            </div>
+                        </div>
+
                         <ha-button
                             @click="${this._handleButton}"
                         >${button_label}</ha-button>
+
+                        <ha-button
+                            @click="${this._handleFertilizedButton}"
+                        >${button_fertilized_label}</ha-button>
                     </div>
                 </div>
             </ha-card>
@@ -213,6 +246,10 @@ export class SimplePlantCard extends LitElement {
 
     _handleButton() {
         this._hass.callService("button", "press", {}, {entity_id: this._entity_ids["mark_watered"]})
+    }
+
+    _handleFertilizedButton() {
+        this._hass.callService("button", "press", {}, {entity_id: this._entity_ids["mark_fertilized"]})
     }
 
     _update_entites() {
@@ -255,13 +292,16 @@ export class SimplePlantCard extends LitElement {
         const device_entities = entities.filter((entity) => entity.device_id == this._device_id);
         const entity_ids = device_entities.map(({entity_id}) => (entity_id))
         // parse entities
+        // Sort keys by length descending so more specific keys match before shorter ones
+        // (e.g. "problem_fertilization" before "problem")
+        const sortedKeys = [...SimplePlantCard.keys].sort((a, b) => b.length - a.length);
         entity_ids.forEach(id => {
-            SimplePlantCard.keys.forEach((key) => {
+            for (const key of sortedKeys) {
                 if (id.includes(key)) {
-                // Associate the corresponding key with the matched string
-                this._entity_ids[key] = id;
+                    this._entity_ids[key] = id;
+                    break;
                 }
-            });
+            }
         });
     }
 
@@ -271,9 +311,12 @@ export class SimplePlantCard extends LitElement {
             return
         const translation_key = `component.${INTEGRATION}.entity.button.mark_watered.name`
         this._translations["button"] = `${this._hass.localize(translation_key)} !`
+        const fertilized_key = `component.${INTEGRATION}.entity.button.mark_fertilized.name`
+        this._translations["button_fertilized"] = `${this._hass.localize(fertilized_key)} !`
         this._translations["cancel"] = this._hass.localize("ui.dialogs.generic.cancel")
         this._translations["today"] = this._hass.localize("ui.components.calendar.today")
         this._translations["late"] = this._hass.localize(`component.${INTEGRATION}.entity.binary_sensor.problem.name`)
+        this._translations["late_fertilization"] = this._hass.localize(`component.${INTEGRATION}.entity.binary_sensor.problem_fertilization.name`)
         this._translations_loaded = true
     }
 }
