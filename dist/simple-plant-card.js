@@ -741,6 +741,8 @@ function $feccc7a5980a21d5$var$relativeDays(isoDateString) {
     return $feccc7a5980a21d5$var$dateDiffInDays(today, dateB);
 }
 function $feccc7a5980a21d5$export$6270e84457db9b38(isoDateString, local = "en", today = "today") {
+    const parsed = Date.parse(isoDateString);
+    if (!isoDateString || isNaN(parsed)) return "\u2014";
     const diff_days = $feccc7a5980a21d5$var$relativeDays(isoDateString);
     const relativeTimeFormat = new Intl.RelativeTimeFormat(local, {
         style: "long"
@@ -829,7 +831,6 @@ class $a399cc6bbb0eb26a$export$ca6a74221cf9b5c5 extends (0, $ab210b2da7b39b9d$ex
         }
         // Updating states
         if (!this._entity_states.size) this._update_entites();
-        this._states_updated = false; // resetting for future use
         this._loadTranslations();
         // Guard: bail out if required entities are not yet loaded
         const requiredKeys = [
@@ -840,6 +841,8 @@ class $a399cc6bbb0eb26a$export$ca6a74221cf9b5c5 extends (0, $ab210b2da7b39b9d$ex
             "last_watered"
         ];
         if (requiredKeys.some((k)=>!this._entity_states.get(k))) return (0, $f58f44579a4747ac$export$c0bb0b647f701bb5)``;
+        this._states_updated = false; // resetting for future use
+        const fertilization_enabled = !!this._entity_ids["next_fertilization"] && !!this._entity_states.get("next_fertilization") && this._entity_states.get("next_fertilization").state !== "unavailable" && this._entity_states.get("next_fertilization").state !== "unknown";
         // compute strings
         const health_key_prefix = "component.simple_plant.entity.select.health.state";
         const health_key = `${health_key_prefix}.${this._entity_states.get("health").state}`;
@@ -858,7 +861,6 @@ class $a399cc6bbb0eb26a$export$ca6a74221cf9b5c5 extends (0, $ab210b2da7b39b9d$ex
         const last_date = this._entity_states.get("last_watered").state;
         const last_watered = (0, $feccc7a5980a21d5$export$6270e84457db9b38)(last_date, local, today);
         const button_label = last_watered === today ? this._translations["cancel"] : this._translations["button"];
-        const fertilization_enabled = !!this._entity_ids["next_fertilization"];
         let next_fertilization_class = "";
         let late_fertilization_class = "hidden";
         let fertilization_color = "";

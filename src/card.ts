@@ -111,13 +111,19 @@ export class SimplePlantCard extends LitElement {
         // Updating states
         if(!this._entity_states.size)
             this._update_entites()
-        this._states_updated = false; // resetting for future use
         this._loadTranslations()
 
         // Guard: bail out if required entities are not yet loaded
         const requiredKeys = ["health", "days_between_waterings", "next_watering", "problem", "last_watered"];
         if (requiredKeys.some(k => !this._entity_states.get(k)))
             return html``;
+
+        this._states_updated = false; // resetting for future use
+
+        const fertilization_enabled = !!this._entity_ids["next_fertilization"] &&
+            !!this._entity_states.get("next_fertilization") &&
+            this._entity_states.get("next_fertilization").state !== "unavailable" &&
+            this._entity_states.get("next_fertilization").state !== "unknown";
 
         // compute strings
         const health_key_prefix = "component.simple_plant.entity.select.health.state"
@@ -142,7 +148,6 @@ export class SimplePlantCard extends LitElement {
         const last_watered = relativeDate(last_date, local, today)
         const button_label = last_watered === today ? this._translations["cancel"] : this._translations["button"]
 
-        const fertilization_enabled = !!this._entity_ids["next_fertilization"];
         let next_fertilization_class = "";
         let late_fertilization_class = "hidden";
         let fertilization_color = "";
